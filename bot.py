@@ -40,6 +40,10 @@ def is_recruiter(member: discord.Member) -> bool:
     return any(r.id in RECRUITER_ROLE_IDS for r in member.roles)
 
 
+def get_notify_channel(interaction: discord.Interaction):
+    return bot.get_channel(NOTIFY_CHANNEL_ID) if NOTIFY_CHANNEL_ID else interaction.channel
+
+
 def build_embed() -> discord.Embed:
     if available:
         desc = "\n".join(f"🟢 <@{r}>" for r in available)
@@ -71,6 +75,18 @@ class PanelView(discord.ui.View):
         save_available()
         await interaction.response.edit_message(embed=build_embed(), view=self)
 
+        embed = discord.Embed(
+            title="🔴 Recruteur indisponible",
+            description=f"{interaction.user.mention} n'est **plus disponible** pour le moment.",
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow(),
+        )
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        embed.set_footer(text="Merci de patienter jusqu'à la prochaine disponibilité")
+
+        channel = get_notify_channel(interaction)
+        await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())  # aucun ping
+
     @discord.ui.button(label="Je suis dispo", emoji="✅", style=discord.ButtonStyle.success, custom_id="panel:dispo")
     async def dispo(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_recruiter(interaction.user):
@@ -84,10 +100,25 @@ class PanelView(discord.ui.View):
 
         await interaction.response.edit_message(embed=build_embed(), view=self)
 
-        channel = bot.get_channel(NOTIFY_CHANNEL_ID) if NOTIFY_CHANNEL_ID else interaction.channel
+        embed = discord.Embed(
+            title="🟢 Un recruteur est disponible !",
+            description=(
+                f"{interaction.user.mention} est maintenant **disponible** pour passer un entretien.\n\n"
+                "Rends-toi dans le salon dédié pour être pris en charge."
+            ),
+            color=discord.Color.green(),
+            timestamp=discord.utils.utcnow(),
+        )
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        embed.add_field(name="👤 Recruteur", value=interaction.user.mention, inline=True)
+        embed.add_field(name="🕐 Disponible depuis", value=discord.utils.format_dt(discord.utils.utcnow(), "R"), inline=True)
+        embed.set_footer(text="Candidature acceptée • Entretien")
+
+        channel = get_notify_channel(interaction)
         await channel.send(
-            f"🔔 <@&{ACCEPTED_ROLE_ID}> {interaction.user.mention} est disponible pour un entretien !",
-            allowed_mentions=discord.AllowedMentions(roles=True, users=True),
+            content=f"<@&{ACCEPTED_ROLE_ID}>",  # le ping doit être dans le texte, pas dans l'embed
+            embed=embed,
+            allowed_mentions=discord.AllowedMentions(roles=True, users=False),
         )
 
     @discord.ui.button(label="Voir les dispos", emoji="📋", style=discord.ButtonStyle.primary, custom_id="panel:voir")
