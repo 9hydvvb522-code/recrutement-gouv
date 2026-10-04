@@ -17,6 +17,10 @@ RECRUITER_ROLE_IDS = [
 ACCEPTED_ROLE_ID = int(os.getenv("ACCEPTED_ROLE_ID"))          # rôle "candidature acceptée" à ping
 NOTIFY_CHANNEL_ID = int(os.getenv("NOTIFY_CHANNEL_ID", "0"))   # salon des pings (0 = salon du panel)
 
+# salon où les candidats doivent venir quand un recruteur est dispo
+ENTRETIEN_CHANNEL_ID = int(os.getenv("ENTRETIEN_CHANNEL_ID", "1554901523622789341"))
+ENTRETIEN_URL = f"https://discord.com/channels/1486833515545886844/{ENTRETIEN_CHANNEL_ID}"
+
 DATA_FILE = Path("data.json")
 
 
@@ -104,7 +108,7 @@ class PanelView(discord.ui.View):
             title="🟢 Un recruteur est disponible !",
             description=(
                 f"{interaction.user.mention} est maintenant **disponible** pour passer un entretien.\n\n"
-                "Rends-toi dans le salon dédié pour être pris en charge."
+                f"👉 Viens dans <#{ENTRETIEN_CHANNEL_ID}> pour être pris en charge."
             ),
             color=discord.Color.green(),
             timestamp=discord.utils.utcnow(),
@@ -112,6 +116,7 @@ class PanelView(discord.ui.View):
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         embed.add_field(name="👤 Recruteur", value=interaction.user.mention, inline=True)
         embed.add_field(name="🕐 Disponible depuis", value=discord.utils.format_dt(discord.utils.utcnow(), "R"), inline=True)
+        embed.add_field(name="📍 Salon", value=f"[Clique ici pour rejoindre]({ENTRETIEN_URL})", inline=False)
         embed.set_footer(text="Candidature acceptée • Entretien")
 
         channel = get_notify_channel(interaction)
