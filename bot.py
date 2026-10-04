@@ -44,6 +44,22 @@ def is_recruiter(member: discord.Member) -> bool:
     return any(r.id in RECRUITER_ROLE_IDS for r in member.roles)
 
 
+def status_text() -> str:
+    n = len(available)
+    if n == 0:
+        return "Made By Azalee | 🔴 Aucun recruteur dispo"
+    if n == 1:
+        return "Made By Azalee | 🟢 1 recruteur dispo"
+    return f"Made By Azalee | 🟢 {n} recruteurs dispos"
+
+
+async def update_status() -> None:
+    try:
+        await bot.change_presence(activity=discord.CustomActivity(name=status_text()))
+    except Exception as e:
+        print(f"Impossible de mettre à jour le statut : {e}")
+
+
 def get_notify_channel(interaction: discord.Interaction):
     return bot.get_channel(NOTIFY_CHANNEL_ID) if NOTIFY_CHANNEL_ID else interaction.channel
 
@@ -78,6 +94,7 @@ class PanelView(discord.ui.View):
         available.remove(interaction.user.id)
         save_available()
         await interaction.response.edit_message(embed=build_embed(), view=self)
+        await update_status()
 
         embed = discord.Embed(
             title="🔴 Recruteur indisponible",
@@ -103,6 +120,7 @@ class PanelView(discord.ui.View):
         save_available()
 
         await interaction.response.edit_message(embed=build_embed(), view=self)
+        await update_status()
 
         embed = discord.Embed(
             title="🟢 Un recruteur est disponible !",
@@ -141,7 +159,7 @@ class RecruiterBot(discord.Client):
     def __init__(self):
         super().__init__(
             intents=discord.Intents.default(),
-            activity=discord.CustomActivity(name="Made By Azalee"),  # <- change le texte ici
+            activity=discord.CustomActivity(name=status_text()),  # <- change le texte ici
             status=discord.Status.online,  # online / idle / dnd
         )
         self.tree = app_commands.CommandTree(self)
@@ -158,6 +176,7 @@ bot = RecruiterBot()
 @bot.event
 async def on_ready():
     print(f"Connecté en tant que {bot.user}")
+    await update_status()
 
 
 @bot.tree.command(name="panel", description="(Admin) Poster le panel de disponibilité des recruteurs")
