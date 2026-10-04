@@ -139,7 +139,11 @@ class PanelView(discord.ui.View):
 
 class RecruiterBot(discord.Client):
     def __init__(self):
-        super().__init__(intents=discord.Intents.default())
+        super().__init__(
+            intents=discord.Intents.default(),
+            activity=discord.CustomActivity(name="Made By Azalee"),  # <- change le texte ici
+            status=discord.Status.online,  # online / idle / dnd
+        )
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
