@@ -47,15 +47,19 @@ def is_recruiter(member: discord.Member) -> bool:
 def status_text() -> str:
     n = len(available)
     if n == 0:
-        return "Made By Azalee | 🔴 Aucun recruteur dispo"
+        return "🔴 Aucun recruteur dispo | Made By Azalee"
     if n == 1:
-        return "Made By Azalee | 🟢 1 recruteur dispo"
-    return f"Made By Azalee | 🟢 {n} recruteurs dispos"
+        return "🟢 1 recruteur dispo | Made By Azalee"
+    return f"🟢 {n} recruteurs dispos | Made By Azalee"
+
+
+def make_activity() -> discord.Activity:
+    return discord.Activity(type=discord.ActivityType.watching, name=status_text())
 
 
 async def update_status() -> None:
     try:
-        await bot.change_presence(activity=discord.CustomActivity(name=status_text()))
+        await bot.change_presence(activity=make_activity())
     except Exception as e:
         print(f"Impossible de mettre à jour le statut : {e}")
 
@@ -65,10 +69,12 @@ def get_notify_channel(interaction: discord.Interaction):
 
 
 def build_embed() -> discord.Embed:
-    if available:
-        desc = "\n".join(f"🟢 <@{r}>" for r in available)
+    n = len(available)
+    if n == 0:
+        desc = "## 🔴 Aucun recruteur disponible\nMerci de patienter jusqu'à la prochaine disponibilité."
     else:
-        desc = "🔴 Aucun recruteur disponible pour le moment."
+        label = "recruteur disponible" if n == 1 else "recruteurs disponibles"
+        desc = f"## 🟢 {n} {label}\n" + "\n".join(f"🟢 <@{r}>" for r in available)
     embed = discord.Embed(
         title="DISPONIBILITÉ DES RECRUTEURS",
         description=desc,
@@ -159,7 +165,7 @@ class RecruiterBot(discord.Client):
     def __init__(self):
         super().__init__(
             intents=discord.Intents.default(),
-            activity=discord.CustomActivity(name=status_text()),  # <- change le texte ici
+            activity=make_activity(),  # <- le texte est dans status_text()
             status=discord.Status.online,  # online / idle / dnd
         )
         self.tree = app_commands.CommandTree(self)
