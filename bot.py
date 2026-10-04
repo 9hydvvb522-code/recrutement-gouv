@@ -60,6 +60,7 @@ def make_activity() -> discord.Activity:
 async def update_status() -> None:
     try:
         await bot.change_presence(activity=make_activity())
+        print(f"Statut mis à jour : {status_text()}")
     except Exception as e:
         print(f"Impossible de mettre à jour le statut : {e}")
 
