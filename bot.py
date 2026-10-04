@@ -24,18 +24,28 @@ ENTRETIEN_URL = f"https://discord.com/channels/1486833515545886844/{ENTRETIEN_CH
 DATA_FILE = Path("data.json")
 
 
-def load_available() -> list:
+def load_data():
     if DATA_FILE.exists():
-        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
-    return []
+        try:
+            data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return [], {}
+        if isinstance(data, list):  # ancien format
+            return data, {}
+        return data.get("available", []), data.get("announcements", {})
+    return [], {}
 
 
 def save_available() -> None:
-    DATA_FILE.write_text(json.dumps(available), encoding="utf-8")
+    DATA_FILE.write_text(
+        json.dumps({"available": available, "announcements": announcements}),
+        encoding="utf-8",
+    )
 
 
-available = load_available()  # IDs des recruteurs actuellement dispos
+# available     : IDs des recruteurs actuellement dispos
+# announcements : {id_recruteur: {"channel": id_salon, "message": id_message}} (annonce verte)
+available, announcements = load_data()
 
 
 def is_recruiter(member: discord.Member) -> bool:
@@ -112,8 +122,23 @@ class PanelView(discord.ui.View):
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         embed.set_footer(text="Merci de patienter jusqu'à la prochaine disponibilité")
 
-        channel = get_notify_channel(interaction)
-        await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())  # aucun ping
+        # On transforme l'annonce verte en annonce rouge (sans ping)
+        ref = announcements.pop(str(interaction.user.id), None)
+        save_available()
+        edited = False
+        if ref:
+            try:
+                ch = bot.get_channel(ref["channel"]) or await bot.fetch_channel(ref["channel"])
+                old_msg = await ch.fetch_message(ref["message"])
+                await old_msg.edit(content=None, embed=embed, allowed_mentions=discord.AllowedMentions.none())
+                edited = True
+            except Exception as e:
+                print(f"Impossible de modifier l'annonce : {e}")
+
+        # Si l'annonce n'existe plus (message supprimé, redéploiement...), on en poste une nouvelle
+        if not edited:
+            channel = get_notify_channel(interaction)
+            await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())  # aucun ping
 
     @discord.ui.button(label="Je suis dispo", emoji="✅", style=discord.ButtonStyle.success, custom_id="panel:dispo")
     async def dispo(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -145,11 +170,13 @@ class PanelView(discord.ui.View):
         embed.set_footer(text="Candidature acceptée • Entretien")
 
         channel = get_notify_channel(interaction)
-        await channel.send(
+        msg = await channel.send(
             content=f"<@&{ACCEPTED_ROLE_ID}>",  # le ping doit être dans le texte, pas dans l'embed
             embed=embed,
             allowed_mentions=discord.AllowedMentions(roles=True, users=False),
         )
+        announcements[str(interaction.user.id)] = {"channel": msg.channel.id, "message": msg.id}
+        save_available()
 
     @discord.ui.button(label="Voir les dispos", emoji="📋", style=discord.ButtonStyle.primary, custom_id="panel:voir")
     async def voir(self, interaction: discord.Interaction, button: discord.ui.Button):
